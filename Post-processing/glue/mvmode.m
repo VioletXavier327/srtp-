@@ -1,0 +1,437 @@
+function M = mvmode(phi,xyz,xyzdof,in)
+% mvmode(phi,xyz,xyzdof,zdof) plots 3d modeshape
+% mvmode(phi,xyz,xyzdof,in) supplied optional fields:
+%
+% lineI = (:,2) index of locations for plotting lines
+% f,z = (1,m) freq. & damping to be shown in title
+% Nf = half of no. of frames to show per cycle;
+%      0.5 to get a static
+%
+%  hfig = figure handle; [] to generate new figure
+%  flag_deform = 1 to plot deformed shape; active when given line info
+%  flag_undeform = 1 to plot undeformed shape; active when given line info
+%  flag_arrow = 0 to plot arrows
+%  flag_visible = 1 to show axis; 0 not to
+%  flag_disp = 1 to display steps; 0 not to
+%  view = 'xyz','xy','xz','yz' or (1,3) array, or 'solo'
+%         If 'solo', only the first mode will be shown
+%  linewidth = line width for deformed/undeformed shape
+%  aspect = 'auto' aspect rato of fig. is changed automatifcally
+%                to nrow by ncol, with height remaining unchanged;
+%  marksize = size of dots indicating locations
+%  stretch = scalar multiplier to adjust magnitude of deformed shape
+%  ncol = no. of col. in subplot
+%
+% By default,
+%  lineI = [], f = [], z = [], Nf = 5,
+%  flag_deform = 1, flag_undeform = 1, flag_visible = 1,
+%  view = 'xyz', linewidth = 1, aspect = '', markersize = 6, stretch=1
+%  hfig = [], flag_disp = 1, ncol = 2
+%
+% Notes:
+% 1. The mode shape of a node will only be shown if all 3 dofs are non-nan
+% Overloaded methods:
+%  mvmode3, mvmode3_solo
+
+% Written by SK Au, CityU
+% 120424 - removed flag_solo
+% 110116 - original
+
+% defaults and contants
+%--------------------------
+ninputs = 3; % no. of mandatory inputs
+
+in_default.lineI = [];
+in_default.f = [];
+in_default.z = [];
+
+in_default.Nf = 5; % no. of div. per 1/2 cycle; Nf=0.5 ->static
+in_default.flag_deform = 1;
+in_default.flag_undeform = 1;
+% in_default.flag_solo = 0;
+in_default.flag_arrow = 0;
+in_default.flag_visible = 1;
+in_default.view = 'quad1'; % default isometric view
+in_default.linewidth = 1;
+in_default.aspect = '';
+in_default.markersize = 6;
+in_default.stretch = 1;
+in_default.hfig = [];
+in_default.flag_disp = 1;
+in_default.ncol = 3;
+in_default.imode = 1;
+
+if nargin<ninputs
+    error(['Require at least ',num2str(ninputs),' input arguments.']);
+end
+if nargin<ninputs+1
+    in = in_default;
+end
+in = optfield(in,in_default);
+
+% for convenience
+Nf = in.Nf;
+xx = xyz(:,1);
+yy = xyz(:,2);
+zz = xyz(:,3);
+xdof = xyzdof(:,1);
+ydof = xyzdof(:,2);
+zdof = xyzdof(:,3);
+
+
+nframes = round(2*Nf);
+if nframes==0
+    error('No. of frames is zero. Increase Nf.');
+end
+
+%--------------------------------------------------------------------
+[~,m]=size(phi);
+
+if isequal(in.view,'solo') && m>1
+    warning('Solo: Only the first mode will be processed.');
+end
+
+if isequal(in.view,'solo') % plot different view angles, fixed mode
+    nplt = 4;
+    ncol = 2;
+    nrow = 2;
+else % plot different modes, fixed view angle
+    %==========================================================================
+    % 211230 revised by Wei：plot modes uses want to
+    nplt = length(in.imode);
+    %==========================================================================
+%     nplt = max(m,1);  % Old format
+    ncol = min(in.ncol,nplt);
+    nrow = max(ceil(nplt/ncol),1);
+end
+
+% the following flags may change after checking
+in.flag_line = 1;
+in.flag_fz = 1;
+
+if isempty(in.lineI)
+    in.flag_line = 0;
+end
+if isempty(in.f)||isempty(in.z)
+    in.flag_fz = 0;
+end
+
+% set view if solo
+if isequal(in.view,'solo')
+    viewpt = {[0 -1 0],[1 0 0],[0 0 1],[1 1 1]};
+else
+    viewpt = in.view;
+end
+% convert viewpt to cell
+if ~iscell(viewpt)
+    viewpt = {viewpt};
+end
+nview = length(viewpt(:));
+
+% convert view to coord.
+for i=1:nview
+    if ~isnumeric(viewpt{i})
+        switch viewpt{i}
+            case {'xy','yx'}
+                viewpt{i} = [0 0 1];
+            case {'yz','zy'}
+                viewpt{i} = [1 0 0];
+            case {'xz','zx'}
+                viewpt{i} = [0 -1 0];
+            case {'xyz','xzy','yxz','yzx','zxy','zyx'}
+                viewpt{i} = [1 -1 1];
+            case {'quad1'}
+                viewpt{i} = [1 1 1];
+            case {'quad2'}
+                viewpt{i} = [1 -1 1];
+            case {'quad3'}
+                viewpt{i} = [-1 -1 1];
+            case {'quad4'}
+                viewpt{i} = [-1 1 1];
+            case {'quad5'}
+                viewpt{i} = [1 1 -1];
+            case {'quad6'}
+                viewpt{i} = [1 -1 -1];
+            case {'quad7'}
+                viewpt{i} = [-1 -1 -1];
+            case {'quad8'}
+                viewpt{i} = [-1 1 -1];
+            otherwise
+                error('Unknow view point');
+        end
+    end
+end
+
+% force in.flag_arrow = 1 if deformed shape is not plotted, otherwise nothing to plot!
+if ~(in.flag_line && in.flag_deform) && ~in.flag_arrow
+    warning('flag_arrow forced to 1, otherwise nothing to plot');
+    in.flag_arrow = 1;
+end
+
+
+% make sure dimension of xx,yy,zz are the same
+%-------------------------------------------------
+nx = length(xx(:));
+ny = length(yy(:));
+nz = length(zz(:));
+np = max([nx,ny,nz]); % common dim.
+if isempty(xx)
+    xx = zeros(np,1);
+end
+if isempty(yy)
+    yy = zeros(np,1);
+end
+if isempty(zz)
+    zz = zeros(np,1);
+end
+nx = length(xx(:));
+ny = length(yy(:));
+nz = length(zz(:));
+if ~isequal([nx,ny,nz],np*ones(1,3))
+    error('dimension of xx, yy, zz, if nonempty, must be the same.');
+end
+
+% make sure dim. of xdof,ydof,zdof are the same
+%-------------------------------------------------
+if isempty(xdof)
+    u = zeros(np,m);
+else
+    u = zeros(np,m);
+    I = find(~isnan(xdof));
+    u(I,:) = phi(xdof(I),:);
+end
+if isempty(ydof)
+    v = zeros(np,m);
+else
+    v = zeros(np,m);
+    I = find(~isnan(ydof));
+    v(I,:) = phi(ydof(I),:);
+end
+if isempty(zdof)
+    w = zeros(np,m);
+else
+    w = zeros(np,m);
+    I = find(~isnan(zdof));
+    w(I,:) = phi(zdof(I),:);
+end
+
+% lines
+%--------------
+if in.flag_line
+    in.linex = xx(in.lineI);
+    in.liney = yy(in.lineI);
+    in.linez = zz(in.lineI);
+end
+
+% calc. a suitable scaling for showing modeshape
+sx = kron(xx(:),ones(size(xx(:))))-kron(ones(size(xx(:))),xx(:));
+sx = max(abs(sx(:)));
+sy = kron(yy(:),ones(size(yy(:))))-kron(ones(size(yy(:))),yy(:));
+sy = max(abs(sy(:)));
+sz = kron(zz(:),ones(size(zz(:))))-kron(ones(size(zz(:))),zz(:));
+sz = max(abs(sz(:)));
+sp = [sx,sy,sz];
+sp = geomean(sp(sp~=0))/2;
+
+sp = sp*in.stretch;
+
+
+%---------------------------------------------------------------------
+if isempty(in.hfig)
+    figure;
+else
+    figure(in.hfig);
+end
+
+if nframes>1 && in.flag_disp
+    disp('You now have 3 sec to adjust your figure.');
+    pause(3);
+end
+
+if in.flag_disp
+    fprintf('Creating frames for movie ... ');
+end
+for kk=1:nframes
+    
+    if isequal(in.view,'solo') % solo plot, single mode, different views
+        for i=1:nview
+            subplot(nrow,ncol,i);
+            myfun_plt(u(:,1)*sp,v(:,1)*sp,w(:,1)*sp,xx,yy,zz,kk,Nf,in);
+            view(viewpt{i});
+        end
+        if in.flag_fz
+            % ===============================================================================================
+            % 211128 Revised by Wei: use latex interpreter, and add c.o.v of f
+            % and z
+            % ===============================================================================================
+            title({['$\rm\bf{',num2str(in.f(1),3),'}\ \it{Hz}\ ','\rm\bf{(',num2str(in.f_cov(1)*100,2),'\%)}$'];...
+                ['$\rm\bf{',num2str(in.z(1)*100,2),'\%}\ ','\rm\bf{(',num2str(in.z_cov(1)*100,2),'\%)}$']},...
+                'interpreter','latex');
+            % ===============================================================================================
+            
+             % =============================================================================================
+%             h = title([num2str(in.f(1),3),'Hz, ',num2str(in.z(1)*100,2),'%']);
+%             set(h,'fontweight','bold','fontsmooth','on'); % old format
+             % =============================================================================================
+        end
+    else % single view, multiple modes
+        if isequal(in.aspect,'auto')
+            if kk==1
+                aspect(1/ncol,0); % leaves height unchanged
+                aspect(nrow/ncol,1); % leaves width unchanged
+            end
+            %     elseif iscell(in.aspect)
+            %       aspect(in.aspect{:});
+        end
+        
+        for i=1:nplt
+            subplot(nrow,ncol,i);
+            myfun_plt(u(:,i)*sp,v(:,i)*sp,w(:,i)*sp,xx,yy,zz,kk,Nf,in);
+        end % i
+        
+        eqaxis(nrow,ncol,1:nplt);
+        % view can't be done before eqaxis, otherwise have unexpected result
+        % when viewpt = 'xy'
+        for i=1:nplt
+            subplot(nrow,ncol,i);
+            view(viewpt{1});
+            if in.flag_fz && all(~isnan([in.f(i),in.z(i)]))
+            % =====================================================================================================
+            % 211128 Revised by Wei: use latex interpreter, and add c.o.v of f
+            % and z
+            % =====================================================================================================
+            title({['$\rm\bf{',num2str(in.f(i),3),'}\ \it{Hz}\ ','\rm\bf{(',num2str(in.f_cov(i)*100,2),'\%)}$'];...
+                ['$\rm\bf{',num2str(in.z(i)*100,2),'\%}\ ','\rm\bf{(',num2str(in.z_cov(i)*100,2),'\%)}$']},...
+                'interpreter','latex');
+%             title(['$\rm\bf{',num2str(in.f(i),4),'}\ \it{Hz}\ \rm\bf{(',num2str(in.f_cov(i)*100,2),'\%)};\ ' ...
+%                 ,'\rm\bf{',num2str(in.z(i)*100,2),'\%}\ \rm\bf{(',num2str(in.z_cov(i)*100,2),'\%)}$'],...
+%                 'interpreter','latex');
+%             title({['$\rm\bf{f:\ ',num2str(in.f(i),4),'}\ \it{Hz}\ ','\rm\bf{(',num2str(in.f_cov(i)*100,4),'\%)}$'];...
+%                 ['$\rm\bf{\zeta:\ ',num2str(in.z(i)*100,4),'\%}\ ','\rm\bf{(',num2str(in.z_cov(i)*100,4),'\%)}$']},...
+%                 'interpreter','latex');
+            % ====================================================================================================
+            
+            % ===============================================================================
+%                 h = title([num2str(in.f(i),4),'Hz, ',num2str(in.z(i)*100,2),'%']);
+%                 set(h,'fontweight','bold'); % old format
+            % ===============================================================================
+            end
+        end
+    end % if isequal(in.view,'solo')
+    
+    M(kk) = getframe(gcf);
+    
+end % kk
+if in.flag_disp
+    fprintf('done\n');
+end
+
+
+%======================================================================
+function myfun_plt(uu0,vv0,ww0,xx,yy,zz,kk,Nf,in)
+%
+
+% calc. axis limits
+in.axisv = zeros(1,6);
+
+in.axisv(1) = min(xx(:));
+in.axisv(2) = max(xx(:));
+in.axisv(3) = min(yy(:));
+in.axisv(4) = max(yy(:));
+in.axisv(5) = min(zz(:));
+in.axisv(6) = max(zz(:));
+
+in.axisv(1) = min(in.axisv(1),min(xx(:)+uu0(:)));
+in.axisv(2) = max(in.axisv(2),max(xx(:)+uu0(:)));
+in.axisv(3) = min(in.axisv(3),min(yy(:)+vv0(:)));
+in.axisv(4) = max(in.axisv(4),max(yy(:)+vv0(:)));
+in.axisv(5) = min(in.axisv(5),min(zz(:)+ww0(:)));
+in.axisv(6) = max(in.axisv(6),max(zz(:)+ww0(:)));
+
+in.axisv(1) = min(in.axisv(1),min(xx(:)-uu0(:)));
+in.axisv(2) = max(in.axisv(2),max(xx(:)-uu0(:)));
+in.axisv(3) = min(in.axisv(3),min(yy(:)-vv0(:)));
+in.axisv(4) = max(in.axisv(4),max(yy(:)-vv0(:)));
+in.axisv(5) = min(in.axisv(5),min(zz(:)-ww0(:)));
+in.axisv(6) = max(in.axisv(6),max(zz(:)-ww0(:)));
+
+% make sure axis lim is not too short
+lmax = in.axisv(2)-in.axisv(1);
+lmax = max(lmax,in.axisv(4)-in.axisv(3));
+lmax = max(lmax,in.axisv(6)-in.axisv(5));
+%
+in.axisv(2) = max(in.axisv(2),in.axisv(1)+lmax/2);
+in.axisv(4) = max(in.axisv(4),in.axisv(3)+lmax/2);
+in.axisv(6) = max(in.axisv(6),in.axisv(5)+lmax/2);
+
+
+
+% for movie this round
+%     uu = uu0*cos(pi*(kk-Nf-1)/Nf);
+%     vv = vv0*cos(pi*(kk-Nf-1)/Nf);
+%     ww = ww0*cos(pi*(kk-Nf-1)/Nf);
+
+uu = uu0*cos(pi*(kk-1)/Nf);
+vv = vv0*cos(pi*(kk-1)/Nf);
+ww = ww0*cos(pi*(kk-1)/Nf);
+
+if in.flag_line && in.flag_deform
+    linex1 = xx(in.lineI)+uu(in.lineI);
+    liney1 = yy(in.lineI)+vv(in.lineI);
+    linez1 = zz(in.lineI)+ww(in.lineI);
+end
+
+% plot original loc.
+if in.flag_undeform
+    h = plot3(xx,yy,zz,'r.');
+    set(h,'markersize',in.markersize);
+    hold on;
+end
+
+% plot deformed loc.
+if in.flag_deform
+    xx1 = xx + uu; yy1 = yy + vv; zz1 = zz + ww;
+    h = plot3(xx1,yy1,zz1,'blue.');
+    set(h,'markersize',in.markersize);
+    hold on;
+end
+
+% plot arrow
+if in.flag_arrow
+    h = quiver3(xx,yy,zz,uu,vv,ww,0);
+    set(h,'linewidth',1.5,'color','g');
+    hold on;
+end
+
+%         tmp = [in.linex,in.liney,in.linez];
+%     save ivanmv tmp; keyboard
+
+% plot lines
+if in.flag_line
+    if in.flag_undeform
+        h = line(in.linex,in.liney,in.linez);
+        set(h,'color','red','linestyle','-','linewidth',in.linewidth);
+        hold on;
+    end
+    if in.flag_deform
+        h = line(linex1,liney1,linez1);
+        set(h,'color','blue','linestyle','-','linewidth',in.linewidth);
+        hold on;
+    end
+end
+% keyboard
+axis equal;
+
+set(gca,'xtick',[],'ytick',[],'ztick',[],'box','off');
+
+set(gcf,'color',[1 1 1]); % set background to white
+xlabel('$\rm\bf{x}$','interpreter','latex'); ylabel('$\rm\bf{y}$','interpreter','latex'); zlabel('$\rm\bf{z}$','interpreter','latex');
+
+axis(in.axisv);
+
+if in.flag_visible==0
+    set(gca,'visible','off');
+end
+
+hold off;
+

@@ -1,0 +1,13 @@
+function [Sv,f] = svdspectrum(tdata,fs,fres,ichan_plt,p,fc,fb)
+%
+% plot svd spectrum
+%       [Sv,f] = svdspectrum(tdata,fs,fres,ichan_plt,fc)
+% inputs:
+% tdata: data set, nt by n, default acceleration with units of g; other
+% types can be velocity (m/s) or displacement (m/s^2)
+% fs: sampling frequency, Hz
+% fres: fresquency resolution to calculate CPSD, Hz
+% ichan_plt: specify channels to plot PSD
+% p: =0, acceleration; =1, velocity; =2, displacement, default 0
+% fc: cutoff frequency, default fs/2
+% fb: beginning frequency for plot, default 0

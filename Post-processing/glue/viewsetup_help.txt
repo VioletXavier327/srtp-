@@ -1,0 +1,27 @@
+% 
+% <<<<<<<<<<<<<<<<viewsetup>>>>>>>>>>>>>>>>>>>>>>>
+%
+%
+% O = VIEWSETUP(IN) supplies the structure IN with the following optional fields
+%  xls = char of setup (mat) file name
+%  imode = array of mode indices to show; [] means all modes
+%  isetup = array of setup no. to process. [] plots undeformed shape only
+%           if not provided, all valid setups will be used
+%           The setup no. refers to those stated in xls file
+%  gluemethod = 'lsall', 'lsref' or 'ref'; for 'ref', need to provide Iref
+%  flag_movie = 0 to just plot; 1 to show movie
+%
+% The following fields are related to appearance of plots used by MVMODE
+%  hfig = figure handle; [] to generate new figure
+%  flag_deform = 1 to plot deformed shape; active when given line info
+%  flag_undeform = 1 to plot undeformed shape; active when given line info
+%  flag_arrow = 0 to plot arrows
+%  flag_visible = 1 to show axis; 0 not to
+%  view = 'xyz','xy','xz','yz' or (1,3) array or 'solo'
+%         If 'solo', only the first mode will be shown
+%  linewidth = line width for deformed/undeformed shape
+%  aspect = 'auto' aspect rato of fig. is changed automatifcally
+%                to nrow by ncol, with height remaining unchanged;                
+%  marksize = size of dots indicating locations
+%  stretch = scalar multiplier to adjust magnitude of deformed shape
+%

@@ -1,0 +1,49 @@
+% 
+% <<<<<<<<<<<<<<<<chksetup>>>>>>>>>>>>>>>>>>>>>>>
+%
+%
+% The following fields are related to appearance of plots
+%  flag_visible = 1 to show axis; 0 not to
+%  view = 'xyz','xy','xz','yz' or (1,3) array, solo for 3-d
+%  linewidth = line width for mesh
+%  markersize_node = size of dots indicating locations
+%  markersize_arrow = size of dot representing dof
+%  stretch = scalar multiplier to adjust magnitude of deformed shape
+%  flag_movie = 1 to produce movie; 0 to provide static figures
+%               avi file can be produced from o.M, e.g.,
+%               movie2avi(o.M,'mymovie')
+%  flag_avi = 1 to produce avi file
+%  avi = char of avi file name
+%  fps = frames per second, used only when flag_movie = 1
+%  color_ch = char or cell array of color for arrows showing channels
+%             char => same for all channels; if cell dim. is less than no.
+%             of channels, it will be replicated. 
+%             Remember to put {color_ch} so that the input structure has a 
+%             cell as its field rather than being an array of structures
+%  
+%  color_rep = no. of row-wise replications of color_ch
+%            E.g., suppose there are 3 biaxial sensors, with channels
+%            x1,y1,x2,y2,x3,3. Then setting
+%            color_rep = 2 will show the two dofs measured by sensor 1 in 
+%            blue, sensor 2 in green and senosr 3 in red.
+%  arrow_width = line width of arrow showing measured dofs
+%  aspect = cell, input to aspect(:)
+%  flag_ch_txt = 1 to show channel no.; 0 not to
+%  flag_node_txt = 1 to show node number next to node; 0 not to
+%  flag_setup_txt = 1 to show setup number next to node measured; 0 not to
+%  flag_holdon = 1 to accumulate setups (hold on); 0 not to (hold off)
+%                if flag_movie = 0, this also means that all setups will be
+%                shown in a single setup
+%  flag_tick = 1 to show ticks on axis; 0 not to
+%  fontsize_ch = font size of ch. no.
+%  fontsize_node = fontsize of node number
+%  fontsize_setup = fontsize of setup text
+%
+% By default,
+%  xls = [], isetup = [], flag_visible = 1, flag_ch_txt = 1;
+%  view = 'xyz', linewidth = 1, markersize_node = 6, markersize_arrow=6
+%  stretch=1, flag_movie = 1
+%  fps = 1, color_ch = {'b','g','r','c','m','k'}, color_rep = 1
+%  arrow_width = 2, flag_avi = 0, avi = xls, aspect=[]
+%  flag_node_txt = 0, flag_setup_txt = 0, flag_holdon = 0,
+%  fontsize_node = 8, fontsize_setup = 8, flag_tick = 1
